@@ -1,0 +1,17 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+*.md
+!README.md
+logs/
+.vscode/
+.idea/
+*.ipynb
+*.sh
+downloads/
+sft/
+*.tar.gz
+data/
