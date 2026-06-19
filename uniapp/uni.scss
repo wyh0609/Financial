@@ -1,0 +1,37 @@
+/* uni.scss - 全局 SCSS 变量（HBuilderX 必需） */
+
+/* 主题色 */
+$uni-primary: #4d6bfe;
+$uni-primary-light: #6b85ff;
+$uni-primary-disabled: #a0b0ff;
+
+/* 文字颜色 */
+$uni-text-color: #1d2129;
+$uni-text-color-grey: #4e5969;
+$uni-text-color-placeholder: #86909c;
+$uni-text-color-disable: #c9cdd4;
+
+/* 背景颜色 */
+$uni-bg-color: #f7f7f8;
+$uni-bg-color-grey: #f5f6fa;
+$uni-bg-color-hover: #e8e8ed;
+$uni-bg-color-mask: rgba(0, 0, 0, 0.4);
+
+/* 边框颜色 */
+$uni-border-color: #e5e6eb;
+
+/* 字体大小 */
+$uni-font-size-sm: 24rpx;
+$uni-font-size-base: 28rpx;
+$uni-font-size-lg: 32rpx;
+
+/* 圆角 */
+$uni-radius-sm: 8rpx;
+$uni-radius-base: 12rpx;
+$uni-radius-lg: 16rpx;
+$uni-radius-xl: 24rpx;
+
+/* 间距 */
+$uni-spacing-row-sm: 16rpx;
+$uni-spacing-row-base: 24rpx;
+$uni-spacing-row-lg: 32rpx;
