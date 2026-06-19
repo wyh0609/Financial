@@ -1,0 +1,13 @@
+langchain==0.0.261
+langsmith==0.0.23
+elasticsearch==8.9.0
+weaviate-client==3.22.1
+requests==2.31.0
+protobuf==3.20.3
+flask==2.3.3 
+flask-cors==4.0.1
+sentence-transformers==2.2.2
+numpy==1.24.1
+pandas==2.0.3
+SQLAlchemy==1.4.49
+tenacity==8.2.3
