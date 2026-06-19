@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # ============================================================
+  # 1. ElasticSearch — 全文检索引擎，存储财报索引数据
+  # ============================================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.0
+    container_name: chatfinance-es
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "50004:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ============================================================
+  # 2. Weaviate — 向量数据库，存储财报向量供语义检索
+  # ============================================================
+  weaviate:
+    image: semitechnologies/weaviate:1.19.5
+    container_name: chatfinance-weaviate
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_APIKEY_ENABLED: 'true'
+      AUTHENTICATION_APIKEY_ALLOWED_KEYS: 'shadowmotion-secret-key'
+      AUTHENTICATION_APIKEY_USERS: 'shadowmotion'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      CLUSTER_HOSTNAME: 'node1'
+    ports:
+      - "50003:8080"
+    volumes:
+      - weaviatedata:/var/lib/weaviate
+    restart: unless-stopped
+
+
+volumes:
+  esdata:
+  weaviatedata:
