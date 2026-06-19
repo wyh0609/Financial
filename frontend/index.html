@@ -1,0 +1,2983 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChatFinance - 金融财报智能问答</title>
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: #f7f7f8;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #app {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            background: #f7f7f8;
+        }
+
+        /* ========== 侧边栏样式 - DeepSeek深色风格 ========== */
+        .sidebar {
+            width: 260px;
+            background: #1e1e2e;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            border-right: none;
+        }
+
+        .sidebar-header {
+            padding: 20px 16px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding: 0 4px;
+        }
+
+        .sidebar-brand .brand-icon {
+            font-size: 22px;
+        }
+
+        .sidebar-brand .brand-name {
+            font-size: 17px;
+            font-weight: 700;
+            color: #e0e0e0;
+            letter-spacing: -0.3px;
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255,255,255,0.06);
+            color: #c0c0d0;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .new-chat-btn:hover {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            border-color: rgba(255,255,255,0.18);
+        }
+
+        .conversation-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .conversation-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .conversation-list::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.15);
+            border-radius: 2px;
+        }
+
+        .conversation-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s;
+            position: relative;
+        }
+
+        .conversation-item:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+        .conversation-item.active {
+            background: rgba(77, 107, 254, 0.2);
+            border-left: 3px solid #4d6bfe;
+        }
+
+        .conversation-item .icon {
+            font-size: 14px;
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        .conversation-item .title {
+            flex: 1;
+            font-size: 13px;
+            color: #b0b0c0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .conversation-item.active .title {
+            color: #e0e0f0;
+        }
+
+        .conversation-item .time {
+            font-size: 11px;
+            color: rgba(255,255,255,0.25);
+            flex-shrink: 0;
+        }
+
+        .conversation-item .delete-btn {
+            opacity: 0;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: rgba(255,255,255,0.3);
+            font-size: 12px;
+        }
+
+        .conversation-item:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .conversation-item .delete-btn:hover {
+            background: rgba(217, 48, 37, 0.25);
+            color: #ff6b6b;
+        }
+
+        /* ========== 主内容区域 ========== */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #f7f7f8;
+        }
+
+        .header {
+            background: transparent;
+            color: #333;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .header .logo {
+            font-size: 20px;
+            display: none;
+        }
+
+        .header h1 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .header .subtitle {
+            font-size: 12px;
+            color: #999;
+            margin-left: auto;
+        }
+
+        /* ========== 聊天区域 ========== */
+        .chat-area {
+            flex: 1;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scrollbar-gutter: stable;
+            align-items: center;
+        }
+
+        .chat-area::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-area::-webkit-scrollbar-thumb {
+            background: #d0d5dd;
+            border-radius: 3px;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            animation: fadeIn 0.3s ease;
+            min-width: 0;
+            width: 100%;
+            max-width: 780px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.user .avatar {
+            display: none;
+        }
+
+        .message.bot {
+            justify-content: flex-start;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .message.bot .avatar {
+            background: #fff;
+            color: #4d6bfe;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        .bubble {
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .message.user .bubble {
+            background: #4d6bfe;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+            max-width: 75%;
+        }
+
+        .message.bot .bubble {
+            background: #fff;
+            color: #333;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+
+        /* ========== 思考过程样式 - DeepSeek深度思考风格 ========== */
+        .thinking-process {
+            background: linear-gradient(135deg, #faf8ff 0%, #f0edff 50%, #e8f4ff 100%);
+            border: 1px solid transparent;
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #5f6368;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .thinking-process::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            padding: 1.5px;
+            background: linear-gradient(135deg, #4d6bfe, #a855f7, #4d6bfe);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        .thinking-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .thinking-header:hover {
+            opacity: 0.85;
+        }
+
+        .thinking-title {
+            font-weight: 600;
+            color: #4d6bfe;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13.5px;
+        }
+
+        .thinking-toggle {
+            font-size: 12px;
+            color: #888;
+            padding: 3px 10px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.7);
+            transition: all 0.2s;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+
+        .thinking-toggle:hover {
+            background: rgba(255,255,255,0.95);
+            color: #555;
+        }
+
+        .thinking-content {
+            transition: max-height 0.35s ease, opacity 0.3s ease;
+            overflow: hidden;
+        }
+
+        .thinking-content.collapsed {
+            max-height: 0 !important;
+            opacity: 0;
+            margin: 0;
+        }
+
+        .thinking-process .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+
+        .thinking-process .step:last-child {
+            margin-bottom: 0;
+        }
+
+        .thinking-process .step-icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4d6bfe, #7c5cfc);
+            color: #fff;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .thinking-process .step-content {
+            flex: 1;
+            line-height: 1.6;
+        }
+
+        .thinking-process .step-label {
+            font-weight: 600;
+            color: #4d6bfe;
+        }
+
+        .thinking-process .context-list {
+            margin-top: 4px;
+            padding-left: 16px;
+        }
+
+        .thinking-process .context-item {
+            margin-bottom: 2px;
+            color: #777;
+        }
+
+        /* 思考步骤动画样式（边思考边输出） */
+        .thinking-live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4d6bfe, #a855f7);
+            display: inline-block;
+            animation: pulse-dot 1.2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
+        }
+
+        .thinking-process .step-processing {
+            opacity: 0.7;
+        }
+
+        .thinking-process .step-done {
+            opacity: 1;
+            animation: stepFadeIn 0.3s ease;
+        }
+
+        @keyframes stepFadeIn {
+            from { opacity: 0; transform: translateX(-6px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .thinking-process .step-error .step-icon {
+            background: linear-gradient(135deg, #d93025, #ff6b6b);
+        }
+
+        .step-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .step-processing-text {
+            color: #999;
+            font-style: italic;
+            animation: processingPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes processingPulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* ========== 回答区域 ========== */
+        .answer-box {
+            background: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 16px 20px;
+            font-size: 14px;
+            line-height: 1.8;
+            color: #333;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+            box-sizing: border-box;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .streaming-cursor {
+            color: #4d6bfe;
+            animation: blink 0.8s infinite;
+            font-weight: normal;
+            margin-left: 2px;
+        }
+
+        .markdown-body {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #333;
+        }
+
+        .markdown-body h1 { font-size: 22px; font-weight: 700; margin: 16px 0 10px; color: #1a1a2e; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .markdown-body h2 { font-size: 19px; font-weight: 600; margin: 14px 0 8px; color: #1a1a2e; }
+        .markdown-body h3 { font-size: 17px; font-weight: 600; margin: 12px 0 6px; color: #4d6bfe; }
+        .markdown-body h4 { font-size: 15px; font-weight: 600; margin: 10px 0 6px; color: #666; }
+        .markdown-body p { margin: 6px 0; }
+        .markdown-body ul, .markdown-body ol { margin: 6px 0; padding-left: 20px; }
+        .markdown-body li { margin: 3px 0; }
+        .markdown-body strong { font-weight: 600; color: #1a1a2e; }
+        .markdown-body em { font-style: italic; color: #666; }
+        .markdown-body code { background: #f1f3f5; padding: 1px 5px; border-radius: 4px; font-size: 13px; font-family: 'Consolas', 'Monaco', monospace; }
+        .markdown-body pre { background: #1e1e2e; color: #e0e0e0; border: none; border-radius: 8px; padding: 14px; overflow-x: auto; margin: 8px 0; }
+        .markdown-body pre code { background: none; padding: 0; font-size: 13px; color: #e0e0e0; }
+        .markdown-body blockquote { border-left: 3px solid #4d6bfe; margin: 8px 0; padding: 4px 12px; color: #666; background: #f8f9ff; border-radius: 0 6px 6px 0; }
+        .markdown-body table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 13px; }
+        .markdown-body th { background: #f5f5f5; font-weight: 600; padding: 8px 10px; border: 1px solid #e0e0e0; text-align: left; }
+        .markdown-body td { padding: 6px 10px; border: 1px solid #e0e0e0; }
+        .markdown-body tr:nth-child(even) { background: #fafbfc; }
+        .markdown-body hr { border: none; border-top: 1px solid #eee; margin: 12px 0; }
+
+        .answer-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4d6bfe;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+            padding: 4px 0;
+        }
+
+        .typing-dots span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4d6bfe;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0s;
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0.6);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        /* ========== 输入区域 - DeepSeek风格大圆角输入框 ========== */
+        .input-area {
+            border-top: none;
+            padding: 16px 24px 20px;
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+            background: transparent;
+            justify-content: center;
+        }
+
+        .input-area textarea {
+            flex: 1;
+            max-width: 780px;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 16px;
+            padding: 12px 18px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            max-height: 120px;
+            line-height: 1.5;
+            transition: all 0.2s ease;
+            background: #fff;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+
+        .input-area textarea:focus {
+            border-color: #4d6bfe;
+            box-shadow: 0 2px 16px rgba(77, 107, 254, 0.15);
+        }
+
+        .input-area button {
+            background: #4d6bfe;
+            color: #fff;
+            border: none;
+            border-radius: 14px;
+            padding: 10px 22px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(77, 107, 254, 0.25);
+        }
+
+        .input-area button:hover:not(:disabled) {
+            background: #3d5be0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(77, 107, 254, 0.35);
+        }
+
+        .input-area button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: 0 1px 3px rgba(77, 107, 254, 0.12) !important;
+        }
+
+        .input-area button.invest-btn {
+            background: linear-gradient(135deg, #a855f7, #7c3aed);
+            box-shadow: 0 2px 8px rgba(168, 85, 247, 0.25);
+        }
+
+        .input-area button.invest-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #9333ea, #6d28d9);
+            box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
+        }
+
+        .download-pdf-btn {
+            margin-top: 12px;
+            padding: 8px 16px;
+            background: #fff;
+            color: #4d6bfe;
+            border: 1px solid #4d6bfe;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .download-pdf-btn:hover {
+            background: #4d6bfe;
+            color: #fff;
+        }
+
+        .source-tags {
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: #f8f9ff;
+            border-radius: 8px;
+            border: 1px solid #e8ecfd;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .source-tag-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .source-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11.5px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .source-tag.source-kb {
+            background: #e6f4ea;
+            color: #137333;
+            border: 1px solid #a8dab5;
+        }
+
+        .source-tag.source-other {
+            background: #fef7e0;
+            color: #b06000;
+            border: 1px solid #fdd663;
+        }
+
+        /* ========== 空状态 - DeepSeek居中大标题风格 ========== */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            gap: 16px;
+            min-height: 300px;
+            max-width: 780px;
+            width: 100%;
+            padding: 40px 20px;
+        }
+
+        .empty-state .icon {
+            font-size: 52px;
+            opacity: 0.4;
+        }
+
+        .empty-state .empty-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #333;
+            letter-spacing: -0.5px;
+        }
+
+        .empty-state .empty-subtitle {
+            font-size: 15px;
+            color: #888;
+            margin-top: -8px;
+        }
+
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .suggestion-chip {
+            padding: 10px 18px;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 13px;
+            color: #555;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .suggestion-chip:hover {
+            background: #f0f0ff;
+            border-color: #4d6bfe;
+            color: #4d6bfe;
+            box-shadow: 0 2px 8px rgba(77, 107, 254, 0.12);
+            transform: translateY(-1px);
+        }
+
+        /* ========== PDF上传/工具栏样式 ========== */
+        .upload-area {
+            border-top: none;
+            padding: 8px 24px 0;
+            background: transparent;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .upload-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 16px;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .upload-btn:hover {
+            border-color: #4d6bfe;
+            color: #4d6bfe;
+            background: #f8f8ff;
+            box-shadow: 0 2px 8px rgba(77, 107, 254, 0.1);
+        }
+
+        .upload-btn.disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .upload-btn.disabled:hover {
+            border-color: #e0e0e0;
+            color: #666;
+            background: #fff;
+        }
+
+        .upload-btn input[type="file"] {
+            display: none;
+        }
+
+        .toolbar-action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 16px;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            white-space: nowrap;
+        }
+
+        .toolbar-action-btn.compare-btn:hover:not(:disabled) {
+            border-color: #4d6bfe;
+            color: #4d6bfe;
+            background: #f0f0ff;
+            box-shadow: 0 2px 8px rgba(77, 107, 254, 0.1);
+        }
+
+        .toolbar-action-btn.career-btn:hover:not(:disabled) {
+            border-color: #a855f7;
+            color: #a855f7;
+            background: #faf5ff;
+            box-shadow: 0 2px 8px rgba(168, 85, 247, 0.1);
+        }
+
+        .toolbar-action-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+        }
+
+        .upload-status {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .upload-status.success {
+            color: #188038;
+        }
+
+        .upload-status.error {
+            color: #d93025;
+        }
+
+        .upload-progress {
+            margin-top: 6px;
+            height: 4px;
+            background: #e8eaed;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .upload-progress-bar {
+            height: 100%;
+            background: #4d6bfe;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+
+        /* ========== 弹窗样式 - 现代圆角深色遮罩 ========== */
+        .compare-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(6px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .compare-modal {
+            background: #fff;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 28px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            animation: modalIn 0.25s ease-out;
+        }
+
+        @keyframes modalIn {
+            from { transform: scale(0.95) translateY(10px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .compare-modal h2 {
+            margin-bottom: 16px;
+            font-size: 20px;
+            color: #1a1a2e;
+        }
+
+        .compare-input-area {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .compare-input-area input {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 14px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .compare-input-area input:focus {
+            border-color: #4d6bfe;
+        }
+
+        .compare-input-area button {
+            padding: 10px 20px;
+            background: #4d6bfe;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .compare-input-area button:hover {
+            background: #3d5be0;
+        }
+
+        .compare-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 20px;
+        }
+
+        .chart-container {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .chart-container h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .chart-container canvas {
+            width: 100% !important;
+            height: 300px !important;
+        }
+
+        .compare-close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            font-size: 18px;
+            cursor: pointer;
+            color: #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .compare-close-btn:hover {
+            background: #eee;
+            color: #333;
+        }
+
+        .radar-zoom-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .radar-zoom-content {
+            background: #fff;
+            border-radius: 16px;
+            padding: 28px;
+            width: 92%;
+            max-width: 780px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+            animation: zoomIn 0.25s ease-out;
+        }
+
+        @keyframes zoomIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .radar-zoom-close {
+            position: absolute;
+            top: 16px;
+            right: 18px;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            font-size: 16px;
+            color: #888;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            z-index: 10;
+        }
+
+        .radar-zoom-close:hover {
+            background: #eee;
+            color: #333;
+        }
+
+        .radar-zoom-content canvas {
+            width: 100% !important;
+            height: 560px !important;
+        }
+
+        .company-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .company-tag {
+            background: #f0f0ff;
+            color: #4d6bfe;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .company-tag button {
+            background: none;
+            border: none;
+            color: #4d6bfe;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 侧边栏：对话列表 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <span class="brand-icon">💹</span>
+                    <span class="brand-name">ChatFinance</span>
+                </div>
+                <button class="new-chat-btn" @click="createNewConversation">
+                    <span>+</span>
+                    <span>新建对话</span>
+                </button>
+            </div>
+            <div class="conversation-list">
+                <div v-for="conv in conversations" :key="conv.id"
+                     :class="['conversation-item', { active: currentConversationId === conv.id }]"
+                     @click="switchConversation(conv.id)">
+                    <span class="icon">💬</span>
+                    <span class="title">{{ conv.title }}</span>
+                    <button class="delete-btn" @click.stop="deleteConversation(conv.id)">✕</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区域 -->
+        <div class="main-content">
+            <div class="header">
+                <span class="logo">💹</span>
+                <h1>{{ currentConversationTitle }}</h1>
+                <span class="subtitle">金融财报智能问答</span>
+            </div>
+
+            <div class="chat-area" ref="chatArea">
+                <div v-if="messages.length === 0" class="empty-state">
+                    <span class="icon">📊</span>
+                    <div class="empty-title">ChatFinance</div>
+                    <div class="empty-subtitle">向 ChatFinance 提问金融财报相关问题</div>
+                    <div class="suggestions">
+                        <span class="suggestion-chip" v-for="s in suggestions"
+                            @click="sendSuggestion(s)">{{ s }}</span>
+                    </div>
+                </div>
+
+                <div v-for="(msg, idx) in messages" :key="idx" :class="['message', msg.role]">
+                    <div class="avatar">{{ msg.role === 'user' ? '👤' : '🤖' }}</div>
+                    <div style="flex: 1; min-width: 0; overflow: hidden; width: 100%;">
+                    <!-- 思考过程（边思考边输出：逐步展示每个步骤，流式消息立即显示） -->
+                    <div v-if="(msg.thinkingSteps && msg.thinkingSteps.length > 0) || msg.thinking || msg.streaming" class="thinking-process">
+                        <div class="thinking-header" @click="msg.thinkingCollapsed = !msg.thinkingCollapsed">
+                            <span class="thinking-title">
+                                🧠 思考过程
+                                <span v-if="msg.streaming && (!msg.thinkingSteps || msg.thinkingSteps.length === 0)" class="thinking-live-dot"></span>
+                                <span v-else-if="msg.streaming && msg.thinkingSteps && msg.thinkingSteps.some(s => s.status === 'processing')" class="thinking-live-dot"></span>
+                            </span>
+                            <span class="thinking-toggle">{{ msg.thinkingCollapsed ? '展开' : '收缩' }}</span>
+                        </div>
+                        <div class="thinking-content" :class="{ collapsed: msg.thinkingCollapsed }">
+                            <!-- 优先展示逐步到达的思考步骤 -->
+                            <template v-if="msg.thinkingSteps && msg.thinkingSteps.length > 0">
+                                <div v-for="(step, si) in msg.thinkingSteps" :key="'ts-'+si" class="step" :class="'step-' + step.status">
+                                    <div class="step-icon">
+                                        <template v-if="step.status === 'processing'">
+                                            <span class="step-spinner"></span>
+                                        </template>
+                                        <template v-else-if="step.status === 'error'">✗</template>
+                                        <template v-else>{{ step.step }}</template>
+                                    </div>
+                                    <div class="step-content">
+                                        <span class="step-label">{{ step.label }}：</span>
+                                        <template v-if="step.status === 'processing'">
+                                            <span class="step-processing-text">正在处理...</span>
+                                        </template>
+                                        <template v-else-if="step.step === 2">
+                                            {{ Array.isArray(step.content) ? step.content.join('、') || '无' : (step.content || '无') }}
+                                        </template>
+                                        <template v-else-if="step.step === 4">
+                                            <div class="context-list">
+                                                <div v-for="(ctx, ci) in (Array.isArray(step.content) ? step.content.slice(0, 10) : [])" :key="ci" class="context-item">
+                                                    {{ ctx }}
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <template v-else>
+                                            {{ step.content || '' }}
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                            <!-- 等待思考步骤到达时的占位提示 -->
+                            <template v-else-if="msg.streaming && (!msg.thinkingSteps || msg.thinkingSteps.length === 0)">
+                                <div class="step step-processing">
+                                    <div class="step-icon"><span class="step-spinner"></span></div>
+                                    <div class="step-content">
+                                        <span class="step-processing-text">正在启动思考引擎...</span>
+                                    </div>
+                                </div>
+                            </template>
+                            <!-- 兼容旧格式：meta事件中的完整thinking数据 -->
+                            <template v-else-if="msg.thinking">
+                            <div class="step step-done">
+                                <div class="step-icon">1</div>
+                                <div class="step-content">
+                                    <span class="step-label">意图识别：</span>
+                                    {{ msg.thinking.intent }}
+                                </div>
+                            </div>
+                            <div v-if="!msg.thinking.is_open" class="step step-done">
+                                <div class="step-icon">2</div>
+                                <div class="step-content">
+                                    <span class="step-label">实体提取：</span>
+                                    {{ msg.thinking.entities.join('、') || '无' }}
+                                </div>
+                            </div>
+                            <div v-if="msg.thinking.file" class="step step-done">
+                                <div class="step-icon">3</div>
+                                <div class="step-content">
+                                    <span class="step-label">匹配文件：</span>
+                                    {{ msg.thinking.file }}
+                                </div>
+                            </div>
+                            <div v-if="msg.thinking.context && msg.thinking.context.length > 0" class="step step-done">
+                                <div class="step-icon">4</div>
+                                <div class="step-content">
+                                    <span class="step-label">检索上下文：</span>
+                                    <div class="context-list">
+                                        <div v-for="(ctx, i) in msg.thinking.context.slice(0, 10)" :key="i" class="context-item">
+                                            {{ ctx }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            </template>
+                        </div>
+                    </div>
+                    <!-- 最终答案 -->
+                    <div v-if="msg.content" class="answer-box">
+                        <div class="answer-label">📝 回答 <span v-if="msg.streaming" class="streaming-cursor">▌</span></div>
+                        <div class="markdown-body" v-html="renderMd(msg.content)"></div>
+                        <!-- 数据来源标签 -->
+                        <div v-if="msg.sources && msg.sources.length > 0" class="source-tags">
+                            <span class="source-tag-label">📌 数据来源：</span>
+                            <span v-for="(src, si) in msg.sources" :key="si"
+                                :class="['source-tag', src.includes('知识库') ? 'source-kb' : 'source-other']">
+                                {{ src }}
+                            </span>
+                        </div>
+                        <button v-if="msg.isInvestAnalysis" @click="downloadAnalysisPDF(msg)" class="download-pdf-btn">
+                            📥 下载PDF报告
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+                <div v-if="loading" class="message bot">
+                    <div class="avatar">🤖</div>
+                    <div class="bubble">
+                        <div class="typing-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 上传/工具栏区域 -->
+        <div class="upload-area">
+            <label class="upload-btn" :class="{ disabled: uploading }">
+                <span>📄</span>
+                <span>{{ uploading ? '上传中...' : '上传PDF财报' }}</span>
+                <input type="file" accept=".pdf" @change="handleFileUpload" :disabled="uploading">
+            </label>
+            <button @click="openCompareModal" :disabled="loading || uploading" class="toolbar-action-btn compare-btn">📈 公司对比</button>
+            <button @click="openCareerModal" :disabled="loading || uploading" class="toolbar-action-btn career-btn">💼 职业分析</button>
+            <div v-if="uploadStatus" class="upload-status" :class="uploadStatus.type">
+                {{ uploadStatus.message }}
+            </div>
+            <div v-if="uploadProgress > 0 && uploadProgress < 100" class="upload-progress">
+                <div class="upload-progress-bar" :style="{ width: uploadProgress + '%' }"></div>
+            </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="input-area">
+            <textarea v-model="input" placeholder="输入金融问题，按 Enter 发送..."
+                @keydown.enter.exact.prevent="sendMessage" :disabled="loading"
+                rows="1" ref="inputBox"></textarea>
+            <button @click="sendMessage" :disabled="loading || !input.trim()">发送</button>
+            <button @click="sendInvestAnalysis" :disabled="loading || !input.trim()" class="invest-btn">📊 投资人分析</button>
+        </div>
+
+        </div>
+
+        <!-- 公司对比弹窗 -->
+        <div v-if="showCompareModal" class="compare-modal-overlay" @click.self="closeCompareModal">
+            <div class="compare-modal" style="position: relative;">
+                <button class="compare-close-btn" @click="closeCompareModal">&times;</button>
+                <h2>📈 公司财务指标对比</h2>
+                
+                <div class="compare-input-area">
+                    <input v-model="compareCompanyInput" placeholder="输入公司名称，按回车添加"
+                        @keydown.enter.prevent="addCompareCompany">
+                    <input v-model="compareYear" placeholder="年份（如2021，可选）" style="width: 150px;">
+                    <button @click="doCompare" :disabled="compareCompanies.length === 0 || compareLoading">
+                        {{ compareLoading ? '分析中...' : '开始对比' }}
+                    </button>
+                </div>
+                
+                <div class="company-tags">
+                    <span v-for="(c, idx) in compareCompanies" :key="idx" class="company-tag">
+                        {{ c }}
+                        <button @click="removeCompareCompany(idx)">&times;</button>
+                    </span>
+                </div>
+                
+                <div v-if="compareError" style="color: #d93025; margin-bottom: 12px;">{{ compareError }}</div>
+                
+                <div v-if="compareResult && compareResult.not_found && compareResult.not_found.length > 0" style="margin-bottom: 16px;">
+                    <div v-for="(nf, idx) in compareResult.not_found" :key="idx" 
+                         style="background:#fef7e0;border-left:4px solid #f9ab00;padding:10px 14px;margin-bottom:8px;border-radius:0 6px 6px 0;font-size:13px;color:#5f4c00;display:flex;align-items:center;gap:8px;">
+                        <span>⚠️</span>
+                        <span>{{ nf.reason }}</span>
+                    </div>
+                </div>
+                
+                <div v-if="compareResult" class="compare-charts">
+                    <div class="chart-container" style="cursor:pointer;position:relative;" @click="openRadarZoom">
+                        <h3>财务能力雷达图 <span style="font-size:11px;color:#80868b;font-weight:normal;">(点击放大)</span></h3>
+                        <canvas ref="radarCanvas"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>净利润趋势</h3>
+                        <canvas ref="lineCanvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- 雷达图放大弹窗 -->
+                <div v-if="showRadarZoom" class="radar-zoom-overlay" @click.self="closeRadarZoom" @keydown.esc="closeRadarZoom" tabindex="0" ref="radarZoomOverlay">
+                    <div class="radar-zoom-content">
+                        <button class="radar-zoom-close" @click="closeRadarZoom">✕</button>
+                        <h3 style="text-align:center;margin-bottom:16px;color:#1f2937;">财务能力雷达图 - 详细视图</h3>
+                        <canvas ref="radarZoomCanvas"></canvas>
+                        <p style="text-align:center;margin-top:12px;color:#5f6368;font-size:12px;">鼠标悬浮查看具体数值 | 点击空白处关闭</p>
+                    </div>
+                </div>
+
+                <!-- 检索到的原始数据 -->
+                <div v-if="compareResult && compareResult.raw_contexts && Object.keys(compareResult.raw_contexts).length > 0" style="margin-top: 16px;">
+                    <details style="background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+                        <summary style="padding: 10px 14px; cursor: pointer; font-weight: 600; color: #5f6368; user-select: none;">
+                            📂 检索到的原始财报数据（点击展开）
+                        </summary>
+                        <div style="padding: 12px 14px; border-top: 1px solid #e0e0e0; max-height: 350px; overflow-y: auto; font-size: 12px; line-height: 1.6;">
+                            <div v-for="(ctx, company) in compareResult.raw_contexts" :key="company" style="margin-bottom: 10px;">
+                                <strong style="color: #4d6bfe;">{{ company }}：</strong>
+                                <div style="background: #fff; padding: 8px; border-radius: 4px; margin-top: 4px; max-height: 200px; overflow-y: auto; color: #333;">
+                                    <div v-for="(line, li) in (ctx.length > 0 ? ctx.flatMap(item => item.split('\n')) : ['无数据'])" :key="company + '-' + li"
+                                        style="padding: 2px 0; border-bottom: 1px solid #f0f0f0;">{{ line }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+                
+                <!-- 详细指标表格 -->
+                <div v-if="compareResult && compareResult.companies.length > 0" class="metrics-table-container" style="margin-top: 20px; overflow-x: auto;">
+                    <h3 style="margin-bottom: 12px; color: #4d6bfe;">📊 详细财务指标对比</h3>
+                    <table class="metrics-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="background: #e8f0fe;">
+                                <th style="padding: 10px; border: 1px solid #dadce0; text-align: left;">指标</th>
+                                <th v-for="c in compareResult.companies" :key="c" style="padding: 10px; border: 1px solid #dadce0; text-align: center;">{{ c }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="metric in getCompareMetrics()" :key="metric.key" style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 8px 10px; border: 1px solid #dadce0; font-weight: 500;">{{ metric.label }}</td>
+                                <td v-for="c in compareResult.companies" :key="c" style="padding: 8px 10px; border: 1px solid #dadce0; text-align: center;">
+                                    {{ formatMetricValue(metric.key, c) }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 职业分析弹窗 -->
+        <div v-if="showCareerModal" class="compare-modal-overlay" @click.self="closeCareerModal">
+            <div class="compare-modal" style="position: relative; max-width: 900px;">
+                <button class="compare-close-btn" @click="closeCareerModal">&times;</button>
+                <h2>💼 职业入职建议分析</h2>
+                <p style="color: #5f6368; margin-bottom: 16px;">基于公司财务数据，分析哪家公司适合什么样的求职者</p>
+                
+                <div class="compare-input-area">
+                    <input v-model="careerCompanyInput" placeholder="输入公司名称，按回车添加"
+                        @keydown.enter.prevent="addCareerCompany">
+                    <input v-model="careerYear" placeholder="年份（如2021，可选）" style="width: 150px;">
+                    <button @click="doCareerAnalysis" :disabled="careerCompanies.length === 0 || careerLoading">
+                        {{ careerLoading ? '分析中...' : '开始分析' }}
+                    </button>
+                </div>
+                
+                <div class="company-tags">
+                    <span v-for="(c, idx) in careerCompanies" :key="idx" class="company-tag">
+                        {{ c }}
+                        <button @click="removeCareerCompany(idx)">&times;</button>
+                    </span>
+                </div>
+                
+                <div v-if="careerError" style="color: #d93025; margin-bottom: 12px;">{{ careerError }}</div>
+                
+                <div v-if="careerResult" class="career-analysis-result">
+                    <div class="chart-container" style="margin-bottom: 20px;">
+                        <h3>📊 人格匹配度柱状图</h3>
+                        <canvas ref="careerBarCanvas"></canvas>
+                    </div>
+
+                    <!-- 检索到的原始数据 -->
+                    <div v-if="careerResult.raw_contexts && Object.keys(careerResult.raw_contexts).length > 0" style="margin-bottom: 16px;">
+                        <details style="background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+                            <summary style="padding: 10px 14px; cursor: pointer; font-weight: 600; color: #5f6368; user-select: none;">
+                                📂 检索到的原始财报数据（点击展开）
+                            </summary>
+                            <div style="padding: 12px 14px; border-top: 1px solid #e0e0e0; max-height: 350px; overflow-y: auto; font-size: 12px; line-height: 1.6;">
+                                <div v-for="(ctx, company) in careerResult.raw_contexts" :key="company" style="margin-bottom: 10px;">
+                                    <strong style="color: #4d6bfe;">{{ company }}：</strong>
+                                    <div style="background: #fff; padding: 8px; border-radius: 4px; margin-top: 4px; max-height: 200px; overflow-y: auto; color: #333;">
+                                        <div v-for="(line, li) in (ctx.length > 0 ? ctx.flatMap(item => item.split('\n')) : ['无数据'])" :key="company + '-' + li"
+                                            style="padding: 2px 0; border-bottom: 1px solid #f0f0f0;">{{ line }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="analysis-text" style="background: #f8f9fa; border-radius: 8px; padding: 20px; line-height: 1.8; color: #202124;">
+                        <h3 style="margin-bottom: 12px; color: #4d6bfe;">🎯 入职建议分析</h3>
+                        <div v-html="renderCareerAnalysis(careerResult.career_analysis, careerResult)"></div>
+                        <button @click="downloadCareerExcel" style="margin-top: 16px; padding: 10px 24px; background: #4d6bfe; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">下载Excel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, nextTick, onMounted, computed } = Vue
+
+        const API_BASE = "http://localhost:5000"
+
+        createApp({
+            setup() {
+                const messages = ref([])
+                const input = ref("")
+                const loading = ref(false)
+                const uploading = ref(false)
+                const uploadProgress = ref(0)
+                const uploadStatus = ref(null)
+                const chatArea = ref(null)
+                const inputBox = ref(null)
+                
+                // 多对话窗口相关
+                const conversations = ref([])
+                const currentConversationId = ref(null)
+                
+                const currentConversationTitle = computed(() => {
+                    const conv = conversations.value.find(c => c.id === currentConversationId.value)
+                    return conv ? conv.title : '新对话'
+                })
+                
+                // 公司对比相关
+                const showCompareModal = ref(false)
+                const compareCompanyInput = ref("")
+                const compareCompanies = ref([])
+                const compareYear = ref("")
+                const compareLoading = ref(false)
+                const compareResult = ref(null)
+                const compareError = ref("")
+                const radarCanvas = ref(null)
+                const lineCanvas = ref(null)
+                const showRadarZoom = ref(false)
+                const radarZoomCanvas = ref(null)
+                
+                // 职业分析相关
+                const showCareerModal = ref(false)
+                const careerCompanyInput = ref("")
+                const careerCompanies = ref([])
+                const careerYear = ref("")
+                const careerLoading = ref(false)
+                const careerResult = ref(null)
+                const careerError = ref("")
+                const careerBarCanvas = ref(null)
+
+                const suggestions = [
+                    "什么是净利润？",
+                    "2019年安记食品的营业利润率是多少？",
+                    "平潭发展2021年投资收益增长率",
+                    "研发费用对公司的竞争优势有何影响？",
+                ]
+
+                function scrollToBottom() {
+                    nextTick(() => {
+                        if (chatArea.value) {
+                            chatArea.value.scrollTop = chatArea.value.scrollHeight
+                        }
+                    })
+                }
+
+                function sendSuggestion(text) {
+                    input.value = text
+                    sendMessage()
+                }
+                
+                // 加载对话列表
+                async function loadConversations() {
+                    try {
+                        const resp = await fetch(API_BASE + "/api/conversations")
+                        const data = await resp.json()
+                        if (data.conversations) {
+                            conversations.value = data.conversations
+                        }
+                    } catch (e) {
+                        console.error("加载对话列表失败:", e)
+                    }
+                }
+                
+                // 创建新对话
+                async function createNewConversation() {
+                    try {
+                        const resp = await fetch(API_BASE + "/api/conversations", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ title: "新对话" })
+                        })
+                        const data = await resp.json()
+                        if (data.conversation_id) {
+                            await loadConversations()
+                            await switchConversation(data.conversation_id)
+                        }
+                    } catch (e) {
+                        console.error("创建对话失败:", e)
+                    }
+                }
+                
+                // 切换对话
+                async function switchConversation(conversationId) {
+                    currentConversationId.value = conversationId
+                    // 加载该对话的消息
+                    try {
+                        const resp = await fetch(API_BASE + "/api/conversations/" + conversationId)
+                        const data = await resp.json()
+                        if (data.messages) {
+                            messages.value = data.messages.map(msg => ({
+                                role: msg.role,
+                                content: msg.content,
+                                thinking: msg.thinking || null,
+                                thinkingCollapsed: true,
+                                isInvestAnalysis: msg.isInvestAnalysis || false,
+                                company: msg.company || '',
+                                year: msg.year || '',
+                            }))
+                        } else {
+                            messages.value = []
+                        }
+                    } catch (e) {
+                        console.error("加载对话消息失败:", e)
+                        messages.value = []
+                    }
+                    scrollToBottom()
+                }
+                
+                // 删除对话
+                async function deleteConversation(conversationId) {
+                    if (!confirm('确定要删除这个对话吗？')) return
+                    
+                    try {
+                        await fetch(API_BASE + "/api/conversations/" + conversationId, {
+                            method: "DELETE"
+                        })
+                        await loadConversations()
+                        if (currentConversationId.value === conversationId) {
+                            currentConversationId.value = null
+                            messages.value = []
+                        }
+                    } catch (e) {
+                        console.error("删除对话失败:", e)
+                    }
+                }
+
+                async function handleFileUpload(event) {
+                    const file = event.target.files[0]
+                    if (!file) return
+                    if (!file.name.toLowerCase().endsWith('.pdf')) {
+                        uploadStatus.value = { type: 'error', message: '请选择PDF文件' }
+                        return
+                    }
+
+                    uploading.value = true
+                    uploadProgress.value = 0
+                    uploadStatus.value = { type: '', message: '正在上传...' }
+
+                    const formData = new FormData()
+                    formData.append('file', file)
+
+                    try {
+                        const resp = await fetch(API_BASE + "/api/upload_pdf", {
+                            method: "POST",
+                            body: formData,
+                        })
+                        const data = await resp.json()
+                        if (data.error) {
+                            uploadStatus.value = { type: 'error', message: '上传失败: ' + data.error }
+                        } else {
+                            uploadStatus.value = { type: 'success', message: '上传成功！已转换为: ' + data.txt_filename }
+                            messages.value.push({
+                                role: "bot",
+                                content: "📄 PDF文件上传成功！\n文件名: " + data.pdf_filename + "\n已转换为: " + data.txt_filename + "\n\n现在可以提问关于该财报的问题了。"
+                            })
+                        }
+                    } catch (e) {
+                        uploadStatus.value = { type: 'error', message: '上传失败: ' + e.message }
+                    } finally {
+                        uploading.value = false
+                        uploadProgress.value = 0
+                        event.target.value = ''
+                        scrollToBottom()
+                    }
+                }
+
+                async function sendMessage() {
+                    const question = input.value.trim()
+                    if (!question || loading.value) return
+                    
+                    if (!currentConversationId.value) {
+                        await createNewConversation()
+                    }
+
+                    messages.value.push({ role: "user", content: question })
+                    input.value = ""
+                    loading.value = true
+                    scrollToBottom()
+
+                    const botMsg = {
+                        role: "bot",
+                        content: "",
+                        streaming: true,
+                        sources: [],
+                        thinking: null,
+                        thinkingCollapsed: false,
+                        thinkingSteps: [],
+                    }
+                    messages.value.push(botMsg)
+                    scrollToBottom()
+
+                    // 使用 EventSource —— 浏览器原生 SSE API，保证逐步接收
+                    const params = new URLSearchParams({
+                        question: question,
+                        conversation_id: currentConversationId.value || ""
+                    })
+                    const evtSource = new EventSource(API_BASE + "/api/chat_stream_get?" + params.toString())
+
+                    evtSource.onmessage = function(event) {
+                        try {
+                            const evt = JSON.parse(event.data)
+
+                            if (evt.type === "thinking_step") {
+                                const existingIdx = botMsg.thinkingSteps.findIndex(s => s.step === evt.step)
+                                if (existingIdx >= 0) {
+                                    botMsg.thinkingSteps.splice(existingIdx, 1, evt)
+                                } else {
+                                    botMsg.thinkingSteps.push(evt)
+                                }
+                                botMsg.thinkingCollapsed = false
+                                scrollToBottom()
+                            } else if (evt.type === "meta") {
+                                botMsg.thinking = {
+                                    intent: evt.intent,
+                                    entities: evt.entities,
+                                    file: evt.file,
+                                    context: evt.context,
+                                    is_open: evt.is_open,
+                                }
+                                botMsg.sources = evt.sources || []
+                            } else if (evt.type === "chunk") {
+                                botMsg.content += evt.content
+                                scrollToBottom()
+                            } else if (evt.type === "done") {
+                                botMsg.content = evt.answer || botMsg.content
+                                botMsg.streaming = false
+                                botMsg.sources = evt.sources || botMsg.sources
+                                if (!botMsg.thinking) {
+                                    botMsg.thinking = {
+                                        intent: evt.intent,
+                                        entities: evt.entities,
+                                        file: evt.file,
+                                        context: evt.context,
+                                        is_open: evt.is_open,
+                                    }
+                                }
+                                evtSource.close()
+                                loading.value = false
+                                scrollToBottom()
+                                nextTick(() => inputBox.value?.focus())
+                            } else if (evt.type === "error") {
+                                botMsg.content = "错误: " + evt.content
+                                botMsg.streaming = false
+                                evtSource.close()
+                                loading.value = false
+                            }
+                        } catch (parseErr) {
+                        }
+                    }
+
+                    evtSource.onerror = function() {
+                        botMsg.content = botMsg.content || ("连接失败，请确认后端已启动: " + API_BASE)
+                        botMsg.streaming = false
+                        evtSource.close()
+                        loading.value = false
+                        scrollToBottom()
+                        nextTick(() => inputBox.value?.focus())
+                    }
+                }
+
+                async function sendInvestAnalysis() {
+                    const question = input.value.trim()
+                    if (!question || loading.value) return
+                    
+                    // 如果没有当前对话，先创建一个
+                    if (!currentConversationId.value) {
+                        await createNewConversation()
+                    }
+
+                    messages.value.push({ role: "user", content: "📊 投资人分析: " + question })
+                    input.value = ""
+                    loading.value = true
+                    scrollToBottom()
+
+                    const botMsg = {
+                        role: "bot",
+                        content: "",
+                        streaming: true,
+                        sources: [],
+                        thinking: null,
+                        thinkingCollapsed: false,
+                        thinkingSteps: [],
+                        isInvestAnalysis: true,
+                        company: '',
+                        year: '',
+                    }
+                    messages.value.push(botMsg)
+                    scrollToBottom()
+
+                    // 使用 EventSource —— 浏览器原生 SSE API，保证逐步接收
+                    const params = new URLSearchParams({
+                        question: question,
+                        conversation_id: currentConversationId.value || ""
+                    })
+                    const evtSource = new EventSource(API_BASE + "/api/invest_analysis_stream_get?" + params.toString())
+
+                    evtSource.onmessage = function(event) {
+                        try {
+                            const evt = JSON.parse(event.data)
+
+                            if (evt.type === "thinking_step") {
+                                const existingIdx = botMsg.thinkingSteps.findIndex(s => s.step === evt.step)
+                                if (existingIdx >= 0) {
+                                    botMsg.thinkingSteps.splice(existingIdx, 1, evt)
+                                } else {
+                                    botMsg.thinkingSteps.push(evt)
+                                }
+                                botMsg.thinkingCollapsed = false
+                                scrollToBottom()
+                            } else if (evt.type === "meta") {
+                                botMsg.sources = evt.sources || []
+                                if (evt.entities && evt.entities.length > 0) {
+                                    botMsg.company = evt.entities[0] || ''
+                                    // 从所有entities中查找年份
+                                    for (let i = 0; i < evt.entities.length; i++) {
+                                        const m = evt.entities[i].match(/(\d{4})/)
+                                        if (m) { botMsg.year = m[1]; break }
+                                    }
+                                }
+                            } else if (evt.type === "chunk") {
+                                botMsg.content += evt.content
+                                scrollToBottom()
+                            } else if (evt.type === "done") {
+                                botMsg.content = evt.answer || botMsg.content
+                                botMsg.streaming = false
+                                botMsg.sources = evt.sources || botMsg.sources
+                                if (evt.entities && evt.entities.length > 0) {
+                                    botMsg.company = evt.entities[0] || botMsg.company
+                                    // 从所有entities中查找年份
+                                    for (let i = 0; i < evt.entities.length; i++) {
+                                        const m = evt.entities[i].match(/(\d{4})/)
+                                        if (m) { botMsg.year = m[1]; break }
+                                    }
+                                }
+                                // 如果year仍为空，尝试从问题文本中提取
+                                if (!botMsg.year) {
+                                    const ym = question.match(/(\d{4})/)
+                                    if (ym) botMsg.year = ym[1]
+                                }
+                                console.log('[InvestAnalysis] done event, company:', botMsg.company, 'year:', botMsg.year, 'entities:', JSON.stringify(evt.entities))
+                                evtSource.close()
+                                loading.value = false
+                                scrollToBottom()
+                                nextTick(() => inputBox.value?.focus())
+                            } else if (evt.type === "error") {
+                                botMsg.content = "错误: " + evt.content
+                                botMsg.streaming = false
+                                evtSource.close()
+                                loading.value = false
+                            }
+                        } catch (parseErr) {
+                        }
+                    }
+
+                    evtSource.onerror = function() {
+                        botMsg.content = botMsg.content || ("连接失败，请确认后端已启动: " + API_BASE)
+                        botMsg.streaming = false
+                        evtSource.close()
+                        loading.value = false
+                        scrollToBottom()
+                        nextTick(() => inputBox.value?.focus())
+                    }
+                }
+
+                async function downloadAnalysisPDF(msg) {
+                    if (!msg.content) {
+                        alert('缺少分析内容，无法生成PDF')
+                        return
+                    }
+                    const company = msg.company || '未知公司'
+                    const year = msg.year || '未知年份'
+
+                    try {
+                        const resp = await fetch(API_BASE + "/api/download_analysis_pdf", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                company: company,
+                                year: year,
+                                analysis_text: msg.content
+                            }),
+                        })
+                        
+                        if (!resp.ok) {
+                            const data = await resp.json()
+                            alert('PDF生成失败: ' + (data.error || '未知错误'))
+                            return
+                        }
+                        
+                        // 下载文件
+                        const blob = await resp.blob()
+                        const url = window.URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `${company}_${year}_投资分析报告.pdf`
+                        document.body.appendChild(a)
+                        a.click()
+                        window.URL.revokeObjectURL(url)
+                        document.body.removeChild(a)
+                    } catch (e) {
+                        alert('下载失败: ' + e.message)
+                    }
+                }
+                
+                // ========== 公司对比功能 ==========
+                function openCompareModal() {
+                    showCompareModal.value = true
+                    compareCompanies.value = []
+                    compareCompanyInput.value = ""
+                    compareYear.value = ""
+                    compareResult.value = null
+                    compareError.value = ""
+                }
+                
+                function closeCompareModal() {
+                    showCompareModal.value = false
+                }
+                
+                function addCompareCompany() {
+                    const name = compareCompanyInput.value.trim()
+                    if (name && !compareCompanies.value.includes(name)) {
+                        compareCompanies.value.push(name)
+                    }
+                    compareCompanyInput.value = ""
+                }
+                
+                function removeCompareCompany(idx) {
+                    compareCompanies.value.splice(idx, 1)
+                }
+                
+                async function doCompare() {
+                    if (compareCompanies.value.length === 0) return
+                    
+                    compareLoading.value = true
+                    compareError.value = ""
+                    compareResult.value = null
+                    
+                    try {
+                        const resp = await fetch(API_BASE + "/api/compare_companies", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                companies: compareCompanies.value,
+                                year: compareYear.value
+                            })
+                        })
+                        const data = await resp.json()
+                        if (data.error) {
+                            compareError.value = data.error
+                        } else {
+                            compareResult.value = data
+                            nextTick(() => {
+                                drawRadarChart(data)
+                                setupRadarHover(radarCanvas.value)
+                                drawLineChart(data)
+                            })
+                        }
+                    } catch (e) {
+                        compareError.value = "请求失败: " + e.message
+                    } finally {
+                        compareLoading.value = false
+                    }
+                }
+                
+                // 简易Markdown渲染器
+                function renderMd(text) {
+                    if (!text) return ''
+                    try {
+                        if (typeof marked !== 'undefined') {
+                            marked.setOptions({
+                                breaks: true,
+                                gfm: true,
+                            })
+                            return marked.parse(text)
+                        }
+                    } catch (e) {}
+                    return renderMarkdown(text)
+                }
+
+                function renderMarkdown(text) {
+                    if (!text) return ''
+                    let html = text
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                    html = html.replace(/^### (.+)$/gm, '<h3 style="color:#1a73e8;margin:16px 0 8px;font-size:17px;font-weight:600;">$1</h3>')
+                    html = html.replace(/^## (.+)$/gm, '<h2 style="color:#202124;margin:18px 0 10px;font-size:19px;font-weight:600;">$1</h2>')
+                    html = html.replace(/^# (.+)$/gm, '<h1 style="color:#202124;margin:20px 0 12px;font-size:22px;font-weight:700;">$1</h1>')
+                    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    html = html.replace(/^\- (.+)$/gm, '<li style="margin:4px 0;padding-left:8px;">$1</li>')
+                    html = html.replace(/^(\*\*.+\*\*)\s*\n((?:\- .+\n?)+)/gm, (match, title, items) => {
+                        return `<div style="margin:10px 0;"><strong>${title.replace(/\*\*/g, '')}</strong><ul style="margin:4px 0;padding-left:16px;list-style:none;">${items}</ul></div>`
+                    })
+                    html = html.replace(/\n{2,}/g, '<br><br>')
+                    html = html.replace(/\n/g, '<br>')
+                    return html
+                }
+
+                function getScoreColor(score) {
+                    if (score === undefined || score === null) return '#999'
+                    if (score >= 80) return '#188038'
+                    if (score >= 65) return '#1a73e8'
+                    if (score >= 40) return '#f9ab00'
+                    return '#d93025'
+                }
+
+                function renderCareerAnalysis(text, careerResult) {
+                    if (!text) return ''
+                    let cleaned = text
+                        .replace(/PERSONALITY_SCORES_JSON_START[\s\S]*?PERSONALITY_SCORES_JSON_END/g, '')
+                        .replace(/\n\s*PERSONALITY_SCORES_JSON_START.*\n/g, '')
+                        .replace(/^\s*```json\s*$/gm, '')
+                        .replace(/^\s*```\s*$/gm, '')
+                    cleaned = cleaned.replace(/^\s*\{[^}]*"ISTJ".*\}\s*$/m, '')
+
+                    const placeholder = '%%PERSONALITY_TABLE_PLACEHOLDER%%'
+                    
+                    if (careerResult && careerResult.personality_scores && Object.keys(careerResult.personality_scores).length > 0) {
+                        const scores = careerResult.personality_scores
+                        const companies = careerResult.companies || []
+                        let rows = ''
+                        Object.keys(scores).forEach(type => {
+                            const sc = scores[type]
+                            let tds = `<td style="padding:7px 10px; font-weight:500; color:#3c4043; white-space:nowrap;">${type}</td>`
+                            companies.forEach(company => {
+                                const val = sc[company]
+                                const color = getScoreColor(val)
+                                const weight = val >= 70 ? 'bold' : 'normal'
+                                tds += `<td style="padding:7px 10px; text-align:center;"><span style="color:${color};font-weight:${weight}">${val !== undefined ? val + '分' : '-'}</span></td>`
+                            })
+                            rows += `<tr style="border-bottom:1px solid #eee;">${tds}</tr>`
+                        })
+                        let ths = '<th style="padding:8px 10px; text-align:left; font-weight:600; color:#1a73e8; border-bottom:2px solid #c5d7f6;">人格类型</th>'
+                        companies.forEach(company => {
+                            ths += `<th style="padding:8px 10px; text-align:center; font-weight:600; color:#1a73e8; border-bottom:2px solid #c5d7f6;">${company}</th>`
+                        })
+                        const tableHtml = `<table style="width:100%; border-collapse:collapse; margin:12px 0 16px; font-size:13px; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);"><thead><tr style="background:#e8f0fe;">${ths}</tr></thead><tbody>${rows}</tbody></table>`
+                        
+                        cleaned = cleaned.replace(/(第三部分|人格类型.*?得分|人格.*?推荐)[^:\n]*[:\n]/g, '$&\n' + placeholder + '\n')
+                    }
+
+                    let html = renderMarkdown(cleaned.trim())
+                    html = html.replace(placeholder, () => {
+                        if (careerResult && careerResult.personality_scores && Object.keys(careerResult.personality_scores).length > 0) {
+                            const scores = careerResult.personality_scores
+                            const companies = careerResult.companies || []
+                            let rows = ''
+                            Object.keys(scores).forEach(type => {
+                                const sc = scores[type]
+                                let tds = `<td style="padding:7px 10px; font-weight:500; color:#3c4043; white-space:nowrap;">${type}</td>`
+                                companies.forEach(company => {
+                                    const val = sc[company]
+                                    const color = getScoreColor(val)
+                                    const weight = val >= 70 ? 'bold' : 'normal'
+                                    tds += `<td style="padding:7px 10px; text-align:center;"><span style="color:${color};font-weight:${weight}">${val !== undefined ? val + '分' : '-'}</span></td>`
+                                })
+                                rows += `<tr style="border-bottom:1px solid #eee;">${tds}</tr>`
+                            })
+                            let ths = '<th style="padding:8px 10px; text-align:left; font-weight:600; color:#1a73e8; border-bottom:2px solid #c5d7f6;">人格类型</th>'
+                            companies.forEach(company => {
+                                ths += `<th style="padding:8px 10px; text-align:center; font-weight:600; color:#1a73e8; border-bottom:2px solid #c5d7f6;">${company}</th>`
+                            })
+                            return `<table style="width:100%; border-collapse:collapse; margin:12px 0 16px; font-size:13px; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);"><thead><tr style="background:#e8f0fe;">${ths}</tr></thead><tbody>${rows}</tbody></table>`
+                        }
+                        return ''
+                    })
+                    return html
+                }
+
+                function drawCareerBarChart(data) {
+                    const canvas = careerBarCanvas.value
+                    if (!canvas) return
+                    const ctx = canvas.getContext('2d')
+                    const dpr = window.devicePixelRatio || 1
+                    
+                    const container = canvas.parentElement
+                    const containerW = container ? container.clientWidth - 32 : 700
+                    const w = Math.min(containerW, 800)
+                    const h = Math.round(w * 0.52)
+                    
+                    canvas.width = w * dpr
+                    canvas.height = h * dpr
+                    canvas.style.width = w + 'px'
+                    canvas.style.height = h + 'px'
+                    ctx.scale(dpr, dpr)
+
+                    const padding = { top: 30, right: 100, bottom: 60, left: 45 }
+                    const chartW = w - padding.left - padding.right
+                    const chartH = h - padding.top - padding.bottom
+
+                    ctx.clearRect(0, 0, w, h)
+
+                    const personalities = ['ISTJ', 'ISFJ', 'INFJ', 'INTJ', 'ISTP', 'ISFP', 'INFP', 'INTP', 'ESTP', 'ESFP', 'ENFP', 'ENTP', 'ESTJ', 'ESFJ', 'ENFJ', 'ENTJ']
+                    const personalityScores = data.personality_scores || {}
+                    const companies = data.companies || []
+                    const colors = [
+                        [26, 115, 232], [227, 116, 0], [24, 128, 56],
+                        [217, 48, 37], [147, 52, 230], [0, 151, 167]
+                    ]
+
+                    for (let i = 0; i <= 5; i++) {
+                        const y = padding.top + chartH - (i / 5) * chartH
+                        ctx.beginPath()
+                        ctx.strokeStyle = i === 0 ? '#bdc1c6' : '#e8eaed'
+                        ctx.lineWidth = i === 0 ? 1.2 : 0.6
+                        ctx.moveTo(padding.left, y)
+                        ctx.lineTo(w - padding.right, y)
+                        ctx.stroke()
+
+                        if (i > 0) {
+                            ctx.fillStyle = '#80868b'
+                            ctx.font = '10px sans-serif'
+                            ctx.textAlign = 'right'
+                            ctx.textBaseline = 'middle'
+                            ctx.fillText(String(i * 20), padding.left - 6, y)
+                        }
+                    }
+
+                    const groupWidth = chartW / personalities.length
+                    const barWidth = Math.max(8, Math.min(18, (groupWidth - 6) / companies.length))
+                    const barGap = Math.max(2, barWidth * 0.15)
+                    const radius = Math.min(barWidth * 0.35, 4)
+
+                    personalities.forEach((personality, pi) => {
+                        const groupX = padding.left + pi * groupWidth + groupWidth / 2
+
+                        ctx.save()
+                        ctx.translate(groupX, h - padding.bottom + 16)
+                        ctx.fillStyle = '#5f6368'
+                        ctx.font = '10px sans-serif'
+                        ctx.textAlign = 'center'
+                        ctx.textBaseline = 'bottom'
+                        ctx.fillText(personality, 0, 0)
+                        ctx.restore()
+
+                        companies.forEach((company, ci) => {
+                            const scores = personalityScores[personality] || {}
+                            let value = scores[company]
+                            if (value === undefined || value === null) value = 0
+
+                            const barH = Math.max(0, (value / 100) * chartH)
+                            const x = groupX + (ci - (companies.length - 1) / 2) * (barWidth + barGap) - barWidth / 2
+                            const y = padding.top + chartH - barH
+
+                            const rgb = colors[ci % colors.length]
+                            const grad = ctx.createLinearGradient(x, y, x, y + barH)
+                            grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`)
+                            grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.65)`)
+                            
+                            ctx.fillStyle = grad
+                            if (radius < barH / 2 && barH > radius * 2) {
+                                ctx.beginPath()
+                                ctx.moveTo(x + radius, y)
+                                ctx.lineTo(x + barWidth - radius, y)
+                                ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius)
+                                ctx.lineTo(x + barWidth, y + barH)
+                                ctx.lineTo(x, y + barH)
+                                ctx.lineTo(x, y + radius)
+                                ctx.quadraticCurveTo(x, y, x + radius, y)
+                                ctx.fill()
+                            } else {
+                                ctx.fillRect(x, y, barWidth, barH)
+                            }
+
+                            if (value >= 15) {
+                                ctx.fillStyle = '#202124'
+                                ctx.font = 'bold 9px sans-serif'
+                                ctx.textAlign = 'center'
+                                ctx.textBaseline = 'bottom'
+                                ctx.fillText(String(Math.round(value)), x + barWidth / 2, y - 2)
+                            }
+                        })
+                    })
+
+                    if (companies.length > 0) {
+                        const legendX = w - padding.right + 8
+                        let legendY = padding.top + 4
+
+                        ctx.fillStyle = '#5f6368'
+                        ctx.font = 'bold 11px sans-serif'
+                        ctx.textAlign = 'left'
+                        ctx.textBaseline = 'top'
+                        ctx.fillText('公司', legendX, legendY)
+                        legendY += 18
+
+                        companies.forEach((company, ci) => {
+                            const rgb = colors[ci % colors.length]
+                            const lg = ctx.createLinearGradient(legendX, legendY, legendX + 14, legendY + 14)
+                            lg.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`)
+                            lg.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.65)`)
+                            
+                            ctx.fillStyle = lg
+                            ctx.beginPath()
+                            ctx.roundRect(legendX, legendY, 13, 12, 2)
+                            ctx.fill()
+
+                            ctx.fillStyle = '#3c4043'
+                            ctx.font = '11px sans-serif'
+                            ctx.textAlign = 'left'
+                            ctx.textBaseline = 'middle'
+                            ctx.fillText(company, legendX + 19, legendY + 6)
+                            legendY += 20
+                        })
+                    }
+                }
+
+                // 获取对比指标列表
+                function getCompareMetrics() {
+                    return [
+                        { key: 'current_ratio', label: '流动比率' },
+                        { key: 'quick_ratio', label: '速动比率' },
+                        { key: 'cash_short_loan_ratio', label: '货币资金/短期借款' },
+                        { key: 'debt_ratio', label: '资产负债率' },
+                        { key: 'gross_margin', label: '毛利率' },
+                        { key: 'net_margin', label: '净利率' },
+                        { key: 'roe', label: 'ROE' },
+                        { key: 'revenue_growth', label: '营收增长率' },
+                        { key: 'non_recurring_profit_ratio', label: '非经常性损益占比' },
+                        { key: 'per_capita_salary', label: '人均薪酬' },
+                    ]
+                }
+                
+                function formatMetricValue(key, company) {
+                    if (!compareResult.value) return '-'
+                    
+                    const calcData = compareResult.value.calculations || {}
+                    const radarData = compareResult.value.radar_data || {}
+                    
+                    const companyCalc = calcData[company] || {}
+                    
+                    let rawVal = companyCalc[key]
+                    
+                    if (rawVal !== undefined && rawVal !== null && rawVal !== '' && rawVal !== '无' && rawVal !== '无数据' && rawVal !== '无短期借款') {
+                        const numVal = parseFloat(String(rawVal).replace(/,/g, ''))
+                        if (!isNaN(numVal)) {
+                            if (key === 'per_capita_salary') {
+                                return '¥' + (numVal / 10000).toFixed(1) + '万'
+                            }
+                            if (['debt_ratio', 'gross_margin', 'net_margin', 'roe', 'revenue_growth', 'non_recurring_profit_ratio'].includes(key)) {
+                                return numVal.toFixed(2) + '%'
+                            }
+                            if (['current_ratio', 'quick_ratio', 'cash_short_loan_ratio'].includes(key)) {
+                                return numVal.toFixed(2) + '倍'
+                            }
+                            return numVal.toFixed(2)
+                        }
+                        return String(rawVal)
+                    }
+                    
+                    if (rawVal === '无短期借款') return '无短期借款'
+                    if (rawVal === '无数据') return '无数据'
+                    if (rawVal === '无') return '-'
+                    
+                    return '-'
+                }
+                
+                // ========== 职业分析功能 ==========
+                function openCareerModal() {
+                    showCareerModal.value = true
+                    careerCompanies.value = []
+                    careerCompanyInput.value = ""
+                    careerYear.value = ""
+                    careerResult.value = null
+                    careerError.value = ""
+                }
+                
+                function closeCareerModal() {
+                    showCareerModal.value = false
+                }
+                
+                function addCareerCompany() {
+                    const name = careerCompanyInput.value.trim()
+                    if (name && !careerCompanies.value.includes(name)) {
+                        careerCompanies.value.push(name)
+                    }
+                    careerCompanyInput.value = ""
+                }
+                
+                function removeCareerCompany(idx) {
+                    careerCompanies.value.splice(idx, 1)
+                }
+                
+                async function doCareerAnalysis() {
+                    if (careerCompanies.value.length === 0) return
+                    
+                    careerLoading.value = true
+                    careerError.value = ""
+                    careerResult.value = null
+                    
+                    try {
+                        const resp = await fetch(API_BASE + "/api/career_analysis", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                companies: careerCompanies.value,
+                                year: careerYear.value
+                            })
+                        })
+                        const data = await resp.json()
+                        if (data.error) {
+                            careerError.value = data.error
+                        } else {
+                            careerResult.value = data
+                            nextTick(() => {
+                                drawCareerBarChart(data)
+                            })
+                        }
+                    } catch (e) {
+                        careerError.value = "请求失败: " + e.message
+                    } finally {
+                        careerLoading.value = false
+                    }
+                }
+
+                async function downloadCareerExcel() {
+                    if (!careerResult.value) return
+
+                    try {
+                        const resp = await fetch(API_BASE + "/api/download_career_excel", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                companies: careerResult.value.companies,
+                                personality_scores: careerResult.value.personality_scores
+                            })
+                        })
+
+                        if (!resp.ok) {
+                            throw new Error("下载失败")
+                        }
+
+                        const blob = await resp.blob()
+                        const url = window.URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = 'career_analysis.xlsx'
+                        document.body.appendChild(a)
+                        a.click()
+                        window.URL.revokeObjectURL(url)
+                        document.body.removeChild(a)
+                    } catch (e) {
+                        alert("下载Excel失败: " + e.message)
+                    }
+                }
+
+                function drawCareerRadarChart(data) {
+                    const canvas = careerRadarCanvas.value
+                    if (!canvas) return
+                    const ctx = canvas.getContext('2d')
+                    const dpr = window.devicePixelRatio || 1
+                    const rect = canvas.getBoundingClientRect()
+                    canvas.width = rect.width * dpr
+                    canvas.height = rect.height * dpr
+                    ctx.scale(dpr, dpr)
+                    
+                    const w = rect.width
+                    const h = rect.height
+                    const cx = w / 2
+                    const cy = h / 2 + 10
+                    const radius = Math.min(w, h) / 2 - 60
+                    
+                    ctx.clearRect(0, 0, w, h)
+                    
+                    const companies = data.companies || []
+                    const radarData = data.radar_data || {}
+                    
+                    let allMetrics = new Set()
+                    companies.forEach(company => {
+                        if (radarData[company]) {
+                            Object.keys(radarData[company]).forEach(m => allMetrics.add(m))
+                        }
+                    })
+                    const metrics = Array.from(allMetrics)
+                    if (metrics.length === 0) return
+                    
+                    const angleStep = (Math.PI * 2) / metrics.length
+                    const colors = ['#1a73e8', '#e37400', '#188038', '#d93025', '#9334e6']
+                    
+                    for (let level = 1; level <= 5; level++) {
+                        ctx.beginPath()
+                        ctx.strokeStyle = level === 5 ? '#c5c9cc' : '#e8eaed'
+                        ctx.lineWidth = level === 5 ? 1.5 : 1
+                        for (let i = 0; i < metrics.length; i++) {
+                            const angle = i * angleStep - Math.PI / 2
+                            const r = radius * level / 5
+                            const x = cx + Math.cos(angle) * r
+                            const y = cy + Math.sin(angle) * r
+                            if (i === 0) ctx.moveTo(x, y)
+                            else ctx.lineTo(x, y)
+                        }
+                        ctx.closePath()
+                        ctx.stroke()
+                        if (level === 5) {
+                            ctx.fillStyle = 'rgba(248, 249, 250, 0.3)'
+                            ctx.fill()
+                        }
+                    }
+                    
+                    for (let i = 0; i < metrics.length; i++) {
+                        const angle = i * angleStep - Math.PI / 2
+                        ctx.beginPath()
+                        ctx.strokeStyle = '#dadce0'
+                        ctx.lineWidth = 1
+                        ctx.moveTo(cx, cy)
+                        ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius)
+                        ctx.stroke()
+                        
+                        const labelRadius = radius + 28
+                        const labelX = cx + Math.cos(angle) * labelRadius
+                        const labelY = cy + Math.sin(angle) * labelRadius
+                        ctx.fillStyle = '#202124'
+                        ctx.font = 'bold 11px sans-serif'
+                        ctx.textAlign = 'center'
+                        ctx.textBaseline = 'middle'
+                        const labelText = metrics[i]
+                        if (labelText.length > 6) {
+                            ctx.font = '10px sans-serif'
+                        }
+                        ctx.fillText(labelText, labelX, labelY)
+                    }
+                    
+                    companies.forEach((company, ci) => {
+                        const values = radarData[company]
+                        if (!values || Object.keys(values).length === 0) return
+                        
+                        const color = colors[ci % colors.length]
+                        
+                        ctx.beginPath()
+                        ctx.fillStyle = color + '25'
+                        ctx.strokeStyle = color
+                        ctx.lineWidth = 2.5
+                        
+                        let firstPoint = true
+                        for (let i = 0; i < metrics.length; i++) {
+                            const angle = i * angleStep - Math.PI / 2
+                            let val = values[metrics[i]]
+                            if (val === undefined || val === null) val = 0
+                            
+                            let r
+                            if (val < 0) {
+                                r = Math.max(0, radius * val / 100)
+                            } else {
+                                r = Math.min(radius, radius * val / 100)
+                            }
+                            
+                            const x = cx + Math.cos(angle) * r
+                            const y = cy + Math.sin(angle) * r
+                            
+                            if (firstPoint) {
+                                ctx.moveTo(x, y)
+                                firstPoint = false
+                            } else {
+                                ctx.lineTo(x, y)
+                            }
+                        }
+                        ctx.closePath()
+                        ctx.fill()
+                        ctx.stroke()
+                        
+                        for (let i = 0; i < metrics.length; i++) {
+                            const angle = i * angleStep - Math.PI / 2
+                            let val = values[metrics[i]]
+                            if (val === undefined || val === null) val = 0
+                            
+                            let r
+                            if (val < 0) {
+                                r = Math.max(0, radius * val / 100)
+                            } else {
+                                r = Math.min(radius, radius * val / 100)
+                            }
+                            
+                            const x = cx + Math.cos(angle) * r
+                            const y = cy + Math.sin(angle) * r
+                            
+                            ctx.beginPath()
+                            ctx.fillStyle = '#fff'
+                            ctx.strokeStyle = color
+                            ctx.lineWidth = 2
+                            ctx.arc(x, y, 4, 0, Math.PI * 2)
+                            ctx.fill()
+                            ctx.stroke()
+                        }
+                    })
+                    
+                    const legendX = 15
+                    let legendY = 18
+                    ctx.fillStyle = 'rgba(255,255,255,0.85)'
+                    ctx.fillRect(legendX - 8, legendY - 12, 120, companies.length * 22 + 8)
+                    
+                    companies.forEach((company, ci) => {
+                        const color = colors[ci % colors.length]
+                        ctx.fillStyle = color
+                        ctx.fillRect(legendX, legendY, 14, 14)
+                        ctx.strokeStyle = '#e0e0e0'
+                        ctx.lineWidth = 0.5
+                        ctx.strokeRect(legendX, legendY, 14, 14)
+                        ctx.fillStyle = '#202124'
+                        ctx.font = '12px sans-serif'
+                        ctx.textAlign = 'left'
+                        ctx.textBaseline = 'middle'
+                        let displayName = company
+                        if (displayName.length > 7) displayName = displayName.substring(0, 7) + '...'
+                        ctx.fillText(displayName, legendX + 20, legendY + 7)
+                        legendY += 22
+                    })
+                }
+                
+                function drawRadarChart(data, targetCanvas) {
+                    const canvas = targetCanvas || radarCanvas.value
+                    if (!canvas) return
+                    const ctx = canvas.getContext('2d')
+                    const dpr = window.devicePixelRatio || 1
+                    const rect = canvas.getBoundingClientRect()
+                    canvas.width = rect.width * dpr
+                    canvas.height = rect.height * dpr
+                    ctx.scale(dpr, dpr)
+                    
+                    const w = rect.width
+                    const h = rect.height
+                    const cx = w / 2
+                    const cy = h / 2 + 25
+                    const radius = Math.min(w, h) / 2 - 70
+                    
+                    ctx.clearRect(0, 0, w, h)
+                    
+                    const companies = data.companies || []
+                    const radarData = data.radar_data || {}
+                    
+                    let allMetrics = new Set()
+                    companies.forEach(company => {
+                        if (radarData[company]) {
+                            Object.keys(radarData[company]).forEach(m => allMetrics.add(m))
+                        }
+                    })
+                    const metrics = Array.from(allMetrics)
+                    if (metrics.length === 0) return
+                    
+                    const angleStep = (Math.PI * 2) / metrics.length
+                    const palette = [
+                        { stroke: '#1565c0', fill: 'rgba(21,101,192,0.15)', glow: 'rgba(21,101,192,0.35)', dot: '#1565c0' },
+                        { stroke: '#e65100', fill: 'rgba(230,81,0,0.12)', glow: 'rgba(230,81,0,0.30)', dot: '#e65100' },
+                        { stroke: '#2e7d32', fill: 'rgba(46,125,50,0.12)', glow: 'rgba(46,125,50,0.30)', dot: '#2e7d32' },
+                        { stroke: '#c62828', fill: 'rgba(198,40,40,0.12)', glow: 'rgba(198,40,40,0.30)', dot: '#c62828' },
+                        { stroke: '#6a1b9a', fill: 'rgba(106,27,154,0.12)', glow: 'rgba(106,27,154,0.30)', dot: '#6a1b9a' }
+                    ]
+                    
+                    for (let level = 1; level <= 5; level++) {
+                        ctx.beginPath()
+                        ctx.strokeStyle = level === 5 ? '#9aa0a6' : '#e0e3e6'
+                        ctx.lineWidth = level === 5 ? 1 : 0.6
+                        for (let i = 0; i < metrics.length; i++) {
+                            const angle = i * angleStep - Math.PI / 2
+                            const r = radius * level / 5
+                            const x = cx + Math.cos(angle) * r
+                            const y = cy + Math.sin(angle) * r
+                            if (i === 0) ctx.moveTo(x, y)
+                            else ctx.lineTo(x, y)
+                        }
+                        ctx.closePath()
+                        ctx.stroke()
+                        if (level === 5) {
+                            ctx.fillStyle = 'rgba(243,245,248,0.6)'
+                            ctx.fill()
+                        }
+                    }
+                    
+                    for (let level = 1; level <= 4; level++) {
+                        const tickR = radius * level / 5
+                        ctx.fillStyle = '#b0b3b8'
+                        ctx.font = '9px sans-serif'
+                        ctx.textAlign = 'center'
+                        ctx.textBaseline = 'middle'
+                        for (let i = 0; i < metrics.length; i++) {
+                            const angle = i * angleStep - Math.PI / 2
+                            const tx = cx + Math.cos(angle) * (tickR + 10)
+                            const ty = cy + Math.sin(angle) * (tickR + 5)
+                            if (i === 0 || i === Math.floor(metrics.length / 4)) {
+                                ctx.fillText(level * 20, tx, ty)
+                            }
+                        }
+                    }
+                    
+                    for (let i = 0; i < metrics.length; i++) {
+                        const angle = i * angleStep - Math.PI / 2
+                        ctx.beginPath()
+                        ctx.strokeStyle = '#cfd4d9'
+                        ctx.lineWidth = 0.6
+                        ctx.setLineDash([3, 3])
+                        ctx.moveTo(cx, cy)
+                        ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius)
+                        ctx.stroke()
+                        ctx.setLineDash([])
+                        
+                        const labelRadius = radius + 35
+                        const labelX = cx + Math.cos(angle) * labelRadius
+                        const labelY = cy + Math.sin(angle) * labelRadius
+                        
+                        ctx.fillStyle='#1f2937'
+                        ctx.textAlign='center'
+                        ctx.textBaseline='middle'
+                        
+                        const labelText = metrics[i]
+                        if (labelText.length > 5) {
+                            ctx.font = 'bold 9px sans-serif'
+                            const mid = Math.floor(labelText.length / 2)
+                            const line1 = labelText.substring(0, mid)
+                            const line2 = labelText.substring(mid)
+                            ctx.fillText(line1, labelX, labelY - 7)
+                            ctx.fillText(line2, labelX, labelY + 7)
+                        } else {
+                            ctx.font = 'bold 12px sans-serif'
+                            ctx.fillText(labelText, labelX, labelY)
+                        }
+                    }
+                    
+                    const pointCoords = []
+                    
+                    companies.forEach((company, ci) => {
+                        const values = radarData[company]
+                        if (!values || Object.keys(values).length === 0) return
+                        
+                        const style = palette[ci % palette.length]
+                        const pts = []
+                        
+                        for (let i = 0; i < metrics.length; i++) {
+                            const angle = i * angleStep - Math.PI / 2
+                            let val = values[metrics[i]]
+                            if (val === undefined || val === null || isNaN(val)) val = 0
+                            val = Number(val)
+                            val = Math.max(0, Math.min(100, val))
+                            
+                            const r = radius * val / 100
+                            const x = cx + Math.cos(angle) * r
+                            const y = cy + Math.sin(angle) * r
+                            pts.push({ x, y, val, angle })
+                        }
+                        
+                        ctx.save()
+                        ctx.shadowColor = style.glow
+                        ctx.shadowBlur = 12
+                        ctx.shadowOffsetX = 0
+                        ctx.shadowOffsetY = 0
+                        
+                        ctx.beginPath()
+                        ctx.fillStyle = style.fill
+                        ctx.strokeStyle = style.stroke
+                        ctx.lineWidth = 2.8
+                        ctx.lineJoin = 'round'
+                        
+                        pts.forEach((p, idx) => {
+                            if (idx === 0) ctx.moveTo(p.x, p.y)
+                            else ctx.lineTo(p.x, p.y)
+                        })
+                        ctx.closePath()
+                        ctx.fill()
+                        ctx.stroke()
+                        ctx.restore()
+                        
+                        ctx.beginPath()
+                        ctx.fillStyle = style.fill
+                        pts.forEach((p, idx) => {
+                            if (idx === 0) ctx.moveTo(p.x, p.y)
+                            else ctx.lineTo(p.x, p.y)
+                        })
+                        ctx.closePath()
+                        ctx.fill()
+                        
+                        pts.forEach((p, idx) => {
+                            ctx.beginPath()
+                            ctx.arc(p.x, p.y, 5.5, 0, Math.PI * 2)
+                            ctx.fillStyle = '#fff'
+                            ctx.fill()
+                            ctx.strokeStyle = style.stroke
+                            ctx.lineWidth = 2.5
+                            ctx.stroke()
+                            
+                            ctx.beginPath()
+                            ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2)
+                            ctx.fillStyle = style.dot
+                            ctx.fill()
+                            
+                    pointCoords.push({ company, ci, x: p.x, y: p.y, val: p.val, angle: p.angle, color: style.stroke, idx })
+                        })
+                    })
+
+                    canvas._radarPoints = pointCoords
+                    canvas._radarMetrics = metrics
+                    canvas._radarCx = cx
+                    canvas._radarCy = cy
+                    canvas._radarRadius = radius
+                    
+                    const itemW = 120
+                    const totalLegendW = companies.length * itemW + (companies.length - 1) * 16
+                    const legendStartX = (w - totalLegendW) / 2
+                    const legendY = 10
+                    
+                    companies.forEach((company, ci) => {
+                        const style = palette[ci % palette.length]
+                        const lx = legendStartX + ci * (itemW + 16)
+                        
+                        ctx.fillStyle = 'rgba(255,255,255,0.92)'
+                        roundRect(ctx, lx, legendY, itemW, 28, 6)
+                        ctx.fill()
+                        ctx.strokeStyle = '#e2e4e7'
+                        ctx.lineWidth = 1
+                        roundRect(ctx, lx, legendY, itemW, 28, 6)
+                        ctx.stroke()
+                        
+                        ctx.beginPath()
+                        ctx.arc(lx + 16, legendY + 14, 6, 0, Math.PI * 2)
+                        ctx.fillStyle = style.fill
+                        ctx.fill()
+                        ctx.strokeStyle = style.stroke
+                        ctx.lineWidth = 2
+                        ctx.stroke()
+                        
+                        ctx.beginPath()
+                        ctx.arc(lx + 16, legendY + 14, 2.5, 0, Math.PI * 2)
+                        ctx.fillStyle = style.dot
+                        ctx.fill()
+                        
+                        ctx.fillStyle = '#1f2937'
+                        ctx.font = 'bold 12px sans-serif'
+                        ctx.textAlign = 'left'
+                        ctx.textBaseline = 'middle'
+                        
+                        let displayName = company
+                        if (displayName.length > 5) displayName = company.substring(0, 5) + '..'
+                        ctx.fillText(displayName, lx + 28, legendY + 14)
+                    })
+                }
+
+                function roundRect(ctx, x, y, w, h, r) {
+                    ctx.beginPath()
+                    ctx.moveTo(x + r, y)
+                    ctx.lineTo(x + w - r, y)
+                    ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+                    ctx.lineTo(x + w, y + h - r)
+                    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+                    ctx.lineTo(x + r, y + h)
+                    ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+                    ctx.lineTo(x, y + r)
+                    ctx.quadraticCurveTo(x, y, x + r, y)
+                    ctx.closePath()
+                }
+
+                let radarTooltipEl = null
+                function getRadarTooltipEl() {
+                    if (!radarTooltipEl) {
+                        radarTooltipEl = document.createElement('div')
+                        radarTooltipEl.style.cssText = 'position:fixed;pointer-events:none;z-index:9999;display:none;padding:6px 12px;background:#1f2937;color:#fff;font-size:12px;font-weight:bold;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.25);white-space:nowrap;'
+                        document.body.appendChild(radarTooltipEl)
+                    }
+                    return radarTooltipEl
+                }
+                
+                function setupRadarHover(canvas) {
+                    const tooltip = getRadarTooltipEl()
+                    
+                    canvas.addEventListener('mousemove', (e) => {
+                        const rect = canvas.getBoundingClientRect()
+                        const mx = e.clientX - rect.left
+                        const my = e.clientY - rect.top
+                        
+                        const points = canvas._radarPoints || []
+                        const metrics = canvas._radarMetrics || []
+                        
+                        let closest = null
+                        let minDist = 20
+                        
+                        points.forEach(p => {
+                            const dx = mx - p.x
+                            const dy = my - p.y
+                            const dist = Math.sqrt(dx * dx + dy * dy)
+                            if (dist < minDist) {
+                                minDist = dist
+                                closest = p
+                            }
+                        })
+                        
+                        if (closest) {
+                            const metricName = metrics[closest.idx] || ''
+                            tooltip.innerHTML = `<span style="color:${closest.color}">●</span> <b>${closest.company}</b><br>${metricName}: <b style="color:${closest.color}">${Math.round(closest.val)}</b>分`
+                            tooltip.style.display = 'block'
+                            
+                            const offsetX = 16
+                            const offsetY = 12
+                            const tw = tooltip.offsetWidth
+                            const th = tooltip.offsetHeight
+                            
+                            const inLeftHalf = mx < rect.width / 2
+                            const inTopHalf = my < rect.height / 2
+                            
+                            let tx, ty
+                            if (inLeftHalf) {
+                                tx = e.clientX + offsetX
+                            } else {
+                                tx = e.clientX - tw - offsetX
+                            }
+                            
+                            if (inTopHalf) {
+                                ty = e.clientY + offsetY
+                            } else {
+                                ty = e.clientY - th - offsetY
+                            }
+                            
+                            tx = Math.max(4, Math.min(tx, window.innerWidth - tw - 4))
+                            ty = Math.max(4, Math.min(ty, window.innerHeight - th - 4))
+                            
+                            tooltip.style.left = tx + 'px'
+                            tooltip.style.top = ty + 'px'
+                            canvas.style.cursor = 'pointer'
+                        } else {
+                            tooltip.style.display = 'none'
+                            canvas.style.cursor = 'default'
+                        }
+                    })
+                    
+                    canvas.addEventListener('mouseleave', () => {
+                        tooltip.style.display = 'none'
+                        canvas.style.cursor = 'default'
+                    })
+                }
+
+                function openRadarZoom() {
+                    showRadarZoom.value = true
+                    nextTick(() => {
+                        if (compareResult.value) {
+                            drawRadarChart(compareResult.value, radarZoomCanvas.value)
+                            setupRadarHover(radarZoomCanvas.value)
+                        }
+                    })
+                }
+
+                function closeRadarZoom() {
+                    showRadarZoom.value = false
+                }
+
+                function drawLineChart(data) {
+                    const canvas = lineCanvas.value
+                    if (!canvas) return
+                    const ctx = canvas.getContext('2d')
+                    const dpr = window.devicePixelRatio || 1
+                    const rect = canvas.getBoundingClientRect()
+                    canvas.width = rect.width * dpr
+                    canvas.height = rect.height * dpr
+                    ctx.scale(dpr, dpr)
+                    
+                    const w = rect.width
+                    const h = rect.height
+                    const padding = { top: 30, right: 30, bottom: 40, left: 55 }
+                    const chartW = w - padding.left - padding.right
+                    const chartH = h - padding.top - padding.bottom
+                    
+                    ctx.clearRect(0, 0, w, h)
+                    
+                    const companies = data.companies || []
+                    const trendData = data.gross_margin_trend || {}
+                    const years = data.years || []
+                    
+                    if (years.length === 0) {
+                        ctx.fillStyle = '#5f6368'
+                        ctx.font = '14px sans-serif'
+                        ctx.textAlign = 'center'
+                        ctx.fillText('暂无净利润数据', w/2, h/2)
+                        return
+                    }
+                    
+                    let maxVal = 0
+                    let minVal = Infinity
+                    companies.forEach(c => {
+                        const vals = trendData[c] || []
+                        vals.forEach(v => { 
+                            if (v > maxVal) maxVal = v 
+                            if (v < minVal) minVal = v 
+                        })
+                    })
+                    
+                    if (maxVal === 0 && minVal === Infinity) maxVal = 100
+                    if (minVal === Infinity) minVal = 0
+                    if (minVal > 0) minVal = 0
+                    if (maxVal <= 0) maxVal = Math.abs(minVal) + 1
+                    
+                    const valRange = maxVal - minVal
+                    const niceMax = Math.ceil(maxVal / Math.max(1, Math.pow(10, Math.floor(Math.log10(valRange)))) ) * Math.max(1, Math.pow(10, Math.floor(Math.log10(valRange))))
+                    const niceMin = Math.floor(minVal / Math.max(1, Math.pow(10, Math.floor(Math.log10(valRange)))) ) * Math.max(1, Math.pow(10, Math.floor(Math.log10(valRange))))
+                    const finalMax = niceMax
+                    const finalMin = Math.min(niceMin, 0)
+                    const range = finalMax - finalMin || 1
+                    
+                    const colors = ['#1a73e8', '#e37400', '#188038', '#d93025', '#9334e6']
+                    
+                    ctx.strokeStyle = '#e0e0e0'
+                    ctx.lineWidth = 1
+                    for (let i = 0; i <= 5; i++) {
+                        const y = padding.top + chartH * i / 5
+                        ctx.beginPath()
+                        ctx.moveTo(padding.left, y)
+                        ctx.lineTo(padding.left + chartW, y)
+                        ctx.stroke()
+                        
+                        ctx.fillStyle = '#5f6368'
+                        ctx.font = '11px sans-serif'
+                        ctx.textAlign = 'right'
+                        ctx.textBaseline = 'middle'
+                        const val = finalMax - (range * i / 5)
+                        ctx.fillText(val.toFixed(0), padding.left - 8, y)
+                    }
+                    
+                    ctx.fillStyle = '#80868b'
+                    ctx.font = '10px sans-serif'
+                    ctx.textAlign = 'right'
+                    ctx.textBaseline = 'top'
+                    ctx.fillText('万元', padding.left - 8, padding.top + chartH + 20)
+                    
+                    years.forEach((year, i) => {
+                        const x = padding.left + chartW * i / (years.length - 1 || 1)
+                        ctx.fillStyle = '#5f6368'
+                        ctx.font = '12px sans-serif'
+                        ctx.textAlign = 'center'
+                        ctx.textBaseline = 'top'
+                        ctx.fillText(year, x, padding.top + chartH + 10)
+                    })
+                    
+                    if (finalMin < 0) {
+                        const zeroY = padding.top + chartH * (finalMax / range)
+                        ctx.beginPath()
+                        ctx.strokeStyle = '#9aa0a6'
+                        ctx.lineWidth = 1.2
+                        ctx.setLineDash([4, 3])
+                        ctx.moveTo(padding.left, zeroY)
+                        ctx.lineTo(padding.left + chartW, zeroY)
+                        ctx.stroke()
+                        ctx.setLineDash([])
+                        
+                        ctx.fillStyle = '#80868b'
+                        ctx.font = '10px sans-serif'
+                        ctx.textAlign = 'right'
+                        ctx.textBaseline = 'bottom'
+                        ctx.fillText('0', padding.left - 6, zeroY - 2)
+                    }
+                    
+                    companies.forEach((company, ci) => {
+                        const vals = trendData[company] || []
+                        if (vals.length === 0) return
+                        
+                        ctx.beginPath()
+                        ctx.strokeStyle = colors[ci % colors.length]
+                        ctx.lineWidth = 2.5
+                        
+                        vals.forEach((val, i) => {
+                            const x = padding.left + chartW * i / (years.length - 1 || 1)
+                            const y = padding.top + chartH * (1 - (val - finalMin) / range)
+                            if (i === 0) ctx.moveTo(x, y)
+                            else ctx.lineTo(x, y)
+                        })
+                        ctx.stroke()
+                        
+                        vals.forEach((val, i) => {
+                            const x = padding.left + chartW * i / (years.length - 1 || 1)
+                            const y = padding.top + chartH * (1 - (val - finalMin) / range)
+                            ctx.beginPath()
+                            ctx.fillStyle = colors[ci % colors.length]
+                            ctx.arc(x, y, 4, 0, Math.PI * 2)
+                            ctx.fill()
+                        })
+                    })
+                    
+                    let legendY = 10
+                    companies.forEach((company, ci) => {
+                        ctx.fillStyle = colors[ci % colors.length]
+                        ctx.fillRect(w - 100, legendY, 12, 3)
+                        ctx.fillStyle = '#202124'
+                        ctx.font = '11px sans-serif'
+                        ctx.textAlign = 'left'
+                        ctx.fillText(company, w - 85, legendY + 3)
+                        legendY += 16
+                    })
+                }
+
+                onMounted(() => {
+                    inputBox.value?.focus()
+                    loadConversations()
+                })
+
+                return {
+                    messages, input, loading, uploading, uploadProgress, uploadStatus,
+                    chatArea, inputBox,
+                    conversations, currentConversationId, currentConversationTitle,
+                    suggestions, sendMessage, sendSuggestion, handleFileUpload, sendInvestAnalysis, downloadAnalysisPDF,
+                    createNewConversation, switchConversation, deleteConversation,
+                    // 公司对比
+                    showCompareModal, compareCompanyInput, compareCompanies, compareYear,
+                    compareLoading, compareResult, compareError, radarCanvas, lineCanvas,
+                    showRadarZoom, radarZoomCanvas,
+                    openRadarZoom, closeRadarZoom,
+                    openCompareModal, closeCompareModal, addCompareCompany, removeCompareCompany, doCompare,
+                    getCompareMetrics, formatMetricValue,
+                    // 职业分析
+                    showCareerModal, careerCompanyInput, careerCompanies, careerYear,
+                    careerLoading, careerResult, careerError, careerBarCanvas,
+                    openCareerModal, closeCareerModal, addCareerCompany, removeCareerCompany, doCareerAnalysis,
+                    renderMarkdown, renderMd, drawCareerBarChart, downloadCareerExcel,
+                    getScoreColor, renderCareerAnalysis,
+                }
+            },
+        }).mount("#app")
+    </script>
+</body>
+</html>
