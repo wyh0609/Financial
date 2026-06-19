@@ -1,0 +1,14 @@
+{
+    "base_path": "/app",
+    "base_python": "python",
+    "models_path": {
+        "chatglm2": "models/chatglm2-6b",
+        "text2vec": "models/text2vec-base-chinese-paraphrase"
+    },
+    "port": {
+        "chatglm2": 50002,
+        "text2vec": 50001,
+        "elastic_search": 50004,
+        "weaviate": 50003
+    }
+}
